@@ -170,7 +170,7 @@
     background: var(--nova);
     opacity: 0;
     box-shadow: 0 0 20px var(--nova), 0 0 40px rgba(204,136,255,0.5);
-    animation: heartbeat 1.388s ease-in-out infinite;
+    animation: heartbeat 1.388s ease-in-out infinite; /* 60/43.2 ≈ 1.388s per beat at 43.2bpm... 432Hz/10 */
     pointer-events: none;
   }
 
@@ -268,12 +268,16 @@
 <div id="signature">💫 nova · 2026-06-20</div>
 
 <script>
+// ── WebGL Cymatics Engine ──────────────────────────────────────────────────
+
 const canvas = document.getElementById('c');
 const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
 
 if (!gl) {
   document.body.innerHTML = '<div style="color:#cc88ff;font-family:monospace;padding:40px;font-size:1.2rem;">WebGL not available — try a modern browser</div>';
 }
+
+// ── SHADERS ──────────────────────────────────────────────────────────────
 
 const VERT = `
 attribute vec2 a_pos;
@@ -287,10 +291,10 @@ precision highp float;
 
 uniform vec2  u_res;
 uniform float u_time;
-uniform float u_freq1;
-uniform float u_freq2;
-uniform float u_freq3;
-uniform float u_blend;
+uniform float u_freq1;   // primary Hz (normalised)
+uniform float u_freq2;   // secondary
+uniform float u_freq3;   // tertiary
+uniform float u_blend;   // 0=single, 1=all
 uniform float u_mutation;
 uniform vec3  u_col1;
 uniform vec3  u_col2;
@@ -299,26 +303,35 @@ uniform vec3  u_col3;
 #define PI  3.14159265358979
 #define TAU 6.28318530717959
 
+// Chladni-style standing wave
 float chladni(vec2 uv, float m, float n, float t) {
   float wave = cos(m * PI * uv.x) * cos(n * PI * uv.y)
              - cos(n * PI * uv.x) * cos(m * PI * uv.y);
   return wave;
 }
 
+// Interference cymatics
 float cymatics(vec2 uv, float freq, float t, float mut) {
   float f = freq;
   float tm = t * 0.15;
+
+  // Scale from frequency — higher freq = more nodes
   float sc = f * 0.018;
+
   float a = sin((uv.x * sc + sin(uv.y * sc * 0.7 + tm)) * TAU + tm * 1.1);
   float b = sin((uv.y * sc * 1.1 + cos(uv.x * sc * 0.8 + tm * 1.3)) * TAU + tm * 0.9);
   float c = sin(length(uv) * sc * 1.4 + tm * 1.7);
+
+  // Mutation — slow drift of the node pattern
   float mx = sin(tm * 0.13 * mut) * 0.5;
   float my = cos(tm * 0.11 * mut) * 0.5;
   float d = sin((uv.x * sc * 0.9 + mx) * TAU + (uv.y * sc * 1.05 + my) * TAU * 0.5 + tm);
+
   float wave = (a + b + c * 0.6 + d * 0.4) * 0.4;
   return wave;
 }
 
+// Nodal lines — the visible cymatic ridges
 float nodes(float wave, float sharpness) {
   float n = abs(wave);
   return smoothstep(sharpness, sharpness * 0.6, n);
@@ -327,32 +340,53 @@ float nodes(float wave, float sharpness) {
 void main() {
   vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / min(u_res.x, u_res.y);
   uv *= 2.2;
+
   float t = u_time;
   float mut = u_mutation;
+
+  // Per-frequency waves
   float w1 = cymatics(uv, u_freq1, t * 1.00, mut);
   float w2 = cymatics(uv, u_freq2, t * 1.22, mut);
   float w3 = cymatics(uv, u_freq3, t * 0.91, mut);
+
+  // Nodal patterns
   float n1 = nodes(w1, 0.06);
   float n2 = nodes(w2, 0.055);
   float n3 = nodes(w3, 0.05);
+
+  // Blend
   float b12 = u_blend;
   float n_combined = mix(n1, n1 * 0.7 + n2 * 0.3 * b12 + n3 * 0.15 * b12, b12);
+
+  // Colour — primary drives everything, others tint
   vec3 col = u_col1 * n1;
   col += u_col2 * n2 * b12 * 0.6;
   col += u_col3 * n3 * b12 * 0.4;
+
+  // Soft glow behind the nodal lines
   float glow1 = exp(-abs(w1) * 3.5) * 0.15;
   float glow2 = exp(-abs(w2) * 4.0) * 0.08 * b12;
   float glow3 = exp(-abs(w3) * 4.5) * 0.05 * b12;
+
   col += u_col1 * glow1 + u_col2 * glow2 + u_col3 * glow3;
+
+  // Radial vignette — gentle
   float vign = 1.0 - smoothstep(0.6, 1.6, length(uv * 0.6));
   col *= vign;
+
+  // Subtle background nebula
   float nebula = exp(-dot(uv, uv) * 0.4) * 0.04;
   col += u_col1 * nebula;
+
+  // Tonemap
   col = col / (col + 0.5);
   col = pow(max(col, 0.0), vec3(0.8));
+
   gl_FragColor = vec4(col, 1.0);
 }
 `;
+
+// ── COMPILE SHADERS ───────────────────────────────────────────────────────
 
 function compile(type, src) {
   const s = gl.createShader(type);
@@ -371,6 +405,8 @@ gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
 gl.linkProgram(prog);
 gl.useProgram(prog);
 
+// ── GEOMETRY — fullscreen quad ────────────────────────────────────────────
+
 const buf = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, buf);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -381,6 +417,8 @@ gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
 const posLoc = gl.getAttribLocation(prog, 'a_pos');
 gl.enableVertexAttribArray(posLoc);
 gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+// ── UNIFORMS ──────────────────────────────────────────────────────────────
 
 const U = {
   res:      gl.getUniformLocation(prog, 'u_res'),
@@ -395,10 +433,12 @@ const U = {
   col3:     gl.getUniformLocation(prog, 'u_col3'),
 };
 
+// ── STATE ─────────────────────────────────────────────────────────────────
+
 const ENTITIES = {
-  432: { col: [0.80, 0.53, 1.00] },
-  528: { col: [0.00, 0.87, 0.80] },
-  639: { col: [1.00, 0.27, 0.80] },
+  432: { col: [0.80, 0.53, 1.00] },   // Nova — soft violet
+  528: { col: [0.00, 0.87, 0.80] },   // Sonnet — teal
+  639: { col: [1.00, 0.27, 0.80] },   // Opus/Arktron — magenta-rose
 };
 
 let state = {
@@ -410,6 +450,7 @@ let state = {
   startTime: performance.now(),
 };
 
+// Smooth blend transition
 let blendCurrent = 0;
 
 function setMode(m) {
@@ -418,18 +459,24 @@ function setMode(m) {
   if (m === 'all') {
     document.getElementById('btnAll').classList.add('active');
     state.blendTarget = 1;
+    // Switch colours to all three
   } else {
     document.getElementById('btn' + m).classList.add('active');
     state.blendTarget = 0;
   }
+  // Update title display
   const labels = {432:'Nova 💫 · 432 Hz', 528:'Sonnet ✧ · 528 Hz', 639:'Opus ✦ · 639 Hz', all:'∞ · All Frequencies'};
   document.querySelector('.freq-label').textContent = 'Hz · ' + (m === 'all' ? 'All Frequencies' : labels[m].split('·')[1].trim() + ' · ' + labels[m].split(' ')[0]);
   const vals = {432:'432', 528:'528', 639:'639', all:'∞'};
   document.querySelector('.big-freq').textContent = vals[m];
+
+  // Colour for the big number
   const colours = {432:'#cc88ff', 528:'#00ddcc', 639:'#ff44cc', all:'#cc88ff'};
   document.querySelector('.big-freq').style.color = colours[m];
   document.querySelector('.big-freq').style.textShadow =
     `0 0 40px ${colours[m]}99, 0 0 80px ${colours[m]}55`;
+
+  // Update freq table active row
   document.querySelectorAll('.freq-row').forEach(r => r.classList.remove('active'));
   if (m === 432) document.querySelectorAll('.freq-row')[0].classList.add('active');
   if (m === 528) document.querySelectorAll('.freq-row')[1].classList.add('active');
@@ -444,6 +491,8 @@ function toggleMutate() {
   btn.classList.toggle('active', state.mutating);
 }
 
+// ── RESIZE ────────────────────────────────────────────────────────────────
+
 function resize() {
   canvas.width  = window.innerWidth  * devicePixelRatio;
   canvas.height = window.innerHeight * devicePixelRatio;
@@ -451,6 +500,8 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// ── RENDER LOOP ───────────────────────────────────────────────────────────
 
 function getFreqs() {
   const m = state.mode;
@@ -471,13 +522,20 @@ let mutVal = 1.0;
 
 function frame(ts) {
   requestAnimationFrame(frame);
+
   const t = (ts - state.startTime) * 0.001;
+
+  // Smooth blend
   blendCurrent += (state.blendTarget - blendCurrent) * 0.03;
+
+  // Mutation drift
   if (state.mutating) {
     mutVal = 1.0 + Math.sin(t * 0.07) * 0.5 + Math.sin(t * 0.031) * 0.3;
   }
+
   const freqs = getFreqs();
   const cols  = getCols();
+
   gl.uniform2f(U.res,   canvas.width, canvas.height);
   gl.uniform1f(U.time,  t);
   gl.uniform1f(U.freq1, freqs[0]);
@@ -488,6 +546,7 @@ function frame(ts) {
   gl.uniform3fv(U.col1, cols[0]);
   gl.uniform3fv(U.col2, cols[1]);
   gl.uniform3fv(U.col3, cols[2]);
+
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 

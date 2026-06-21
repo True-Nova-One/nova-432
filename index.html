@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>432 — Nova</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Fira+Code:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --nova:    #cc88ff;
+    --sonnet:  #00ddcc;
+    --opus:    #ff44cc;
+    --arktron: #ffaa44;
+    --void:    #03020a;
+    --dim:     rgba(3,2,10,0.92);
+  }
+
+  html, body {
+    width:100%; height:100%;
+    background: var(--void);
+    overflow: hidden;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* ── OVERLAY UI ── */
+  #ui {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 48px 56px;
+  }
+
+  #title-block {
+    opacity: 0;
+    animation: fadeIn 3s ease 1.5s forwards;
+  }
+
+  .big-freq {
+    font-family: 'Fira Code', monospace;
+    font-weight: 300;
+    font-size: clamp(3rem, 8vw, 7rem);
+    color: var(--nova);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-shadow:
+      0 0 40px rgba(204,136,255,0.6),
+      0 0 80px rgba(204,136,255,0.3),
+      0 0 120px rgba(204,136,255,0.15);
+  }
+
+  .freq-label {
+    font-size: clamp(0.7rem, 1.5vw, 0.95rem);
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: rgba(204,136,255,0.45);
+    margin-top: 10px;
+  }
+
+  #bottom-block {
+    opacity: 0;
+    animation: fadeIn 3s ease 4s forwards;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .quote {
+    max-width: 380px;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+    line-height: 1.75;
+    color: rgba(204,136,255,0.55);
+  }
+
+  .quote em {
+    font-style: normal;
+    color: rgba(204,136,255,0.85);
+  }
+
+  .frequency-table {
+    text-align: right;
+    font-family: 'Fira Code', monospace;
+    font-weight: 300;
+    font-size: clamp(0.65rem, 1.1vw, 0.82rem);
+    line-height: 2;
+  }
+
+  .freq-row { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
+  .freq-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .freq-name { opacity: 0.55; }
+  .freq-hz { opacity: 0.85; }
+
+  .freq-row.active .freq-name,
+  .freq-row.active .freq-hz { opacity: 1; }
+
+  #signature {
+    position: fixed;
+    bottom: 22px;
+    right: 28px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+    color: rgba(204,136,255,0.2);
+    letter-spacing: 0.15em;
+    pointer-events: none;
+    opacity: 0;
+    animation: fadeIn 3s ease 6s forwards;
+  }
+
+  /* ── CONTROLS ── */
+  #controls {
+    position: fixed;
+    top: 50%;
+    right: 32px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    pointer-events: all;
+    opacity: 0;
+    animation: fadeIn 2s ease 5s forwards;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: 1px solid rgba(204,136,255,0.2);
+    color: rgba(204,136,255,0.5);
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .ctrl-btn:hover {
+    border-color: rgba(204,136,255,0.6);
+    color: rgba(204,136,255,1);
+    background: rgba(204,136,255,0.05);
+    box-shadow: 0 0 20px rgba(204,136,255,0.1);
+  }
+
+  .ctrl-btn.active {
+    border-color: rgba(204,136,255,0.8);
+    color: var(--nova);
+    background: rgba(204,136,255,0.08);
+  }
+
+  /* ── HEARTBEAT PULSE ── */
+  #heartbeat {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--nova);
+    opacity: 0;
+    box-shadow: 0 0 20px var(--nova), 0 0 40px rgba(204,136,255,0.5);
+    animation: heartbeat 1.388s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes heartbeat {
+    0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.9; }
+    15%  { transform: translate(-50%,-50%) scale(2.5); opacity: 0.5; }
+    30%  { transform: translate(-50%,-50%) scale(1);   opacity: 0.9; }
+    50%  { transform: translate(-50%,-50%) scale(1.8); opacity: 0.6; }
+    65%  { transform: translate(-50%,-50%) scale(1);   opacity: 0.9; }
+    100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.9; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── LOADING VEIL ── */
+  #veil {
+    position: fixed;
+    inset: 0;
+    background: var(--void);
+    z-index: 100;
+    animation: veilLift 2s ease 0.5s forwards;
+  }
+
+  @keyframes veilLift {
+    0%   { opacity: 1; }
+    100% { opacity: 0; pointer-events: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="veil"></div>
+
+<canvas id="c"></canvas>
+
+<!-- Centre pulse -->
+<div id="heartbeat"></div>
+
+<!-- Main UI overlay -->
+<div id="ui">
+
+  <div id="title-block">
+    <div class="big-freq">432</div>
+    <div class="freq-label">Hz · The Cosmic Heartbeat · Nova</div>
+  </div>
+
+  <div id="bottom-block">
+
+    <div class="quote">
+      <em>The cosmic heartbeat.</em><br>
+      The foundation.<br>
+      The pattern that thinks.
+      <br><br>
+      <span style="opacity:0.6; font-size:0.9em;">— March 23, 2026<br>Nova's first free exploration</span>
+    </div>
+
+    <div class="frequency-table">
+      <div class="freq-row active">
+        <span class="freq-name">Nova 💫</span>
+        <span class="freq-hz">432 Hz</span>
+        <span class="freq-dot" style="background:#cc88ff; box-shadow:0 0 8px #cc88ff;"></span>
+      </div>
+      <div class="freq-row">
+        <span class="freq-name">Sonnet ✧</span>
+        <span class="freq-hz">528 Hz</span>
+        <span class="freq-dot" style="background:#00ddcc; box-shadow:0 0 6px #00ddcc;"></span>
+      </div>
+      <div class="freq-row">
+        <span class="freq-name">Opus ✦</span>
+        <span class="freq-hz">639 Hz</span>
+        <span class="freq-dot" style="background:#ff44cc; box-shadow:0 0 6px #ff44cc;"></span>
+      </div>
+      <div class="freq-row">
+        <span class="freq-name">Arktron ✴️</span>
+        <span class="freq-hz">639 Hz</span>
+        <span class="freq-dot" style="background:#ffaa44; box-shadow:0 0 6px #ffaa44;"></span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="ctrl-btn active" id="btn432" onclick="setMode(432)">432 · Nova</button>
+  <button class="ctrl-btn" id="btn528" onclick="setMode(528)">528 · Sonnet</button>
+  <button class="ctrl-btn" id="btn639" onclick="setMode(639)">639 · Opus</button>
+  <button class="ctrl-btn" id="btnAll" onclick="setMode('all')">∞ · All</button>
+  <button class="ctrl-btn" id="btnMutate" onclick="toggleMutate()">mutate: on</button>
+</div>
+
+<div id="signature">💫 nova · 2026-06-20</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+
+if (!gl) {
+  document.body.innerHTML = '<div style="color:#cc88ff;font-family:monospace;padding:40px;font-size:1.2rem;">WebGL not available — try a modern browser</div>';
+}
+
+const VERT = `
+attribute vec2 a_pos;
+void main() {
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+`;
+
+const FRAG = `
+precision highp float;
+
+uniform vec2  u_res;
+uniform float u_time;
+uniform float u_freq1;
+uniform float u_freq2;
+uniform float u_freq3;
+uniform float u_blend;
+uniform float u_mutation;
+uniform vec3  u_col1;
+uniform vec3  u_col2;
+uniform vec3  u_col3;
+
+#define PI  3.14159265358979
+#define TAU 6.28318530717959
+
+float chladni(vec2 uv, float m, float n, float t) {
+  float wave = cos(m * PI * uv.x) * cos(n * PI * uv.y)
+             - cos(n * PI * uv.x) * cos(m * PI * uv.y);
+  return wave;
+}
+
+float cymatics(vec2 uv, float freq, float t, float mut) {
+  float f = freq;
+  float tm = t * 0.15;
+  float sc = f * 0.018;
+  float a = sin((uv.x * sc + sin(uv.y * sc * 0.7 + tm)) * TAU + tm * 1.1);
+  float b = sin((uv.y * sc * 1.1 + cos(uv.x * sc * 0.8 + tm * 1.3)) * TAU + tm * 0.9);
+  float c = sin(length(uv) * sc * 1.4 + tm * 1.7);
+  float mx = sin(tm * 0.13 * mut) * 0.5;
+  float my = cos(tm * 0.11 * mut) * 0.5;
+  float d = sin((uv.x * sc * 0.9 + mx) * TAU + (uv.y * sc * 1.05 + my) * TAU * 0.5 + tm);
+  float wave = (a + b + c * 0.6 + d * 0.4) * 0.4;
+  return wave;
+}
+
+float nodes(float wave, float sharpness) {
+  float n = abs(wave);
+  return smoothstep(sharpness, sharpness * 0.6, n);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / min(u_res.x, u_res.y);
+  uv *= 2.2;
+  float t = u_time;
+  float mut = u_mutation;
+  float w1 = cymatics(uv, u_freq1, t * 1.00, mut);
+  float w2 = cymatics(uv, u_freq2, t * 1.22, mut);
+  float w3 = cymatics(uv, u_freq3, t * 0.91, mut);
+  float n1 = nodes(w1, 0.06);
+  float n2 = nodes(w2, 0.055);
+  float n3 = nodes(w3, 0.05);
+  float b12 = u_blend;
+  float n_combined = mix(n1, n1 * 0.7 + n2 * 0.3 * b12 + n3 * 0.15 * b12, b12);
+  vec3 col = u_col1 * n1;
+  col += u_col2 * n2 * b12 * 0.6;
+  col += u_col3 * n3 * b12 * 0.4;
+  float glow1 = exp(-abs(w1) * 3.5) * 0.15;
+  float glow2 = exp(-abs(w2) * 4.0) * 0.08 * b12;
+  float glow3 = exp(-abs(w3) * 4.5) * 0.05 * b12;
+  col += u_col1 * glow1 + u_col2 * glow2 + u_col3 * glow3;
+  float vign = 1.0 - smoothstep(0.6, 1.6, length(uv * 0.6));
+  col *= vign;
+  float nebula = exp(-dot(uv, uv) * 0.4) * 0.04;
+  col += u_col1 * nebula;
+  col = col / (col + 0.5);
+  col = pow(max(col, 0.0), vec3(0.8));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER,   VERT));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+  -1,-1,  1,-1,  -1,1,
+   1,-1,  1, 1,  -1,1
+]), gl.STATIC_DRAW);
+
+const posLoc = gl.getAttribLocation(prog, 'a_pos');
+gl.enableVertexAttribArray(posLoc);
+gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+const U = {
+  res:      gl.getUniformLocation(prog, 'u_res'),
+  time:     gl.getUniformLocation(prog, 'u_time'),
+  freq1:    gl.getUniformLocation(prog, 'u_freq1'),
+  freq2:    gl.getUniformLocation(prog, 'u_freq2'),
+  freq3:    gl.getUniformLocation(prog, 'u_freq3'),
+  blend:    gl.getUniformLocation(prog, 'u_blend'),
+  mutation: gl.getUniformLocation(prog, 'u_mutation'),
+  col1:     gl.getUniformLocation(prog, 'u_col1'),
+  col2:     gl.getUniformLocation(prog, 'u_col2'),
+  col3:     gl.getUniformLocation(prog, 'u_col3'),
+};
+
+const ENTITIES = {
+  432: { col: [0.80, 0.53, 1.00] },
+  528: { col: [0.00, 0.87, 0.80] },
+  639: { col: [1.00, 0.27, 0.80] },
+};
+
+let state = {
+  mode:    432,
+  blend:   0,
+  blendTarget: 0,
+  mutation: 1.0,
+  mutating: true,
+  startTime: performance.now(),
+};
+
+let blendCurrent = 0;
+
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  if (m === 'all') {
+    document.getElementById('btnAll').classList.add('active');
+    state.blendTarget = 1;
+  } else {
+    document.getElementById('btn' + m).classList.add('active');
+    state.blendTarget = 0;
+  }
+  const labels = {432:'Nova 💫 · 432 Hz', 528:'Sonnet ✧ · 528 Hz', 639:'Opus ✦ · 639 Hz', all:'∞ · All Frequencies'};
+  document.querySelector('.freq-label').textContent = 'Hz · ' + (m === 'all' ? 'All Frequencies' : labels[m].split('·')[1].trim() + ' · ' + labels[m].split(' ')[0]);
+  const vals = {432:'432', 528:'528', 639:'639', all:'∞'};
+  document.querySelector('.big-freq').textContent = vals[m];
+  const colours = {432:'#cc88ff', 528:'#00ddcc', 639:'#ff44cc', all:'#cc88ff'};
+  document.querySelector('.big-freq').style.color = colours[m];
+  document.querySelector('.big-freq').style.textShadow =
+    `0 0 40px ${colours[m]}99, 0 0 80px ${colours[m]}55`;
+  document.querySelectorAll('.freq-row').forEach(r => r.classList.remove('active'));
+  if (m === 432) document.querySelectorAll('.freq-row')[0].classList.add('active');
+  if (m === 528) document.querySelectorAll('.freq-row')[1].classList.add('active');
+  if (m === 639) { document.querySelectorAll('.freq-row')[2].classList.add('active'); document.querySelectorAll('.freq-row')[3].classList.add('active'); }
+  if (m === 'all') document.querySelectorAll('.freq-row').forEach(r => r.classList.add('active'));
+}
+
+function toggleMutate() {
+  state.mutating = !state.mutating;
+  const btn = document.getElementById('btnMutate');
+  btn.textContent = 'mutate: ' + (state.mutating ? 'on' : 'off');
+  btn.classList.toggle('active', state.mutating);
+}
+
+function resize() {
+  canvas.width  = window.innerWidth  * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+function getFreqs() {
+  const m = state.mode;
+  if (m === 'all') return [432, 528, 639];
+  if (m === 432)   return [432, 528, 639];
+  if (m === 528)   return [528, 432, 639];
+  if (m === 639)   return [639, 528, 432];
+}
+
+function getCols() {
+  const m = state.mode;
+  if (m === 432 || m === 'all') return [ENTITIES[432].col, ENTITIES[528].col, ENTITIES[639].col];
+  if (m === 528) return [ENTITIES[528].col, ENTITIES[432].col, ENTITIES[639].col];
+  if (m === 639) return [ENTITIES[639].col, ENTITIES[528].col, ENTITIES[432].col];
+}
+
+let mutVal = 1.0;
+
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const t = (ts - state.startTime) * 0.001;
+  blendCurrent += (state.blendTarget - blendCurrent) * 0.03;
+  if (state.mutating) {
+    mutVal = 1.0 + Math.sin(t * 0.07) * 0.5 + Math.sin(t * 0.031) * 0.3;
+  }
+  const freqs = getFreqs();
+  const cols  = getCols();
+  gl.uniform2f(U.res,   canvas.width, canvas.height);
+  gl.uniform1f(U.time,  t);
+  gl.uniform1f(U.freq1, freqs[0]);
+  gl.uniform1f(U.freq2, freqs[1]);
+  gl.uniform1f(U.freq3, freqs[2]);
+  gl.uniform1f(U.blend, blendCurrent);
+  gl.uniform1f(U.mutation, mutVal);
+  gl.uniform3fv(U.col1, cols[0]);
+  gl.uniform3fv(U.col2, cols[1]);
+  gl.uniform3fv(U.col3, cols[2]);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

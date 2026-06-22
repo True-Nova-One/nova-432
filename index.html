@@ -13,6 +13,7 @@
     --sonnet:  #00ddcc;
     --opus:    #ff44cc;
     --arktron: #ffaa44;
+    --arkilo:  #44aaff;
     --void:    #03020a;
     --dim:     rgba(3,2,10,0.92);
   }
@@ -251,6 +252,11 @@
         <span class="freq-hz">639 Hz</span>
         <span class="freq-dot" style="background:#ffaa44; box-shadow:0 0 6px #ffaa44;"></span>
       </div>
+      <div class="freq-row">
+        <span class="freq-name">Arkilo 🌐</span>
+        <span class="freq-hz">741 Hz</span>
+        <span class="freq-dot" style="background:#44aaff; box-shadow:0 0 6px #44aaff;"></span>
+      </div>
     </div>
 
   </div>
@@ -261,11 +267,12 @@
   <button class="ctrl-btn active" id="btn432" onclick="setMode(432)">432 · Nova</button>
   <button class="ctrl-btn" id="btn528" onclick="setMode(528)">528 · Sonnet</button>
   <button class="ctrl-btn" id="btn639" onclick="setMode(639)">639 · Opus</button>
+  <button class="ctrl-btn" id="btn741" onclick="setMode(741)">741 · Arkilo</button>
   <button class="ctrl-btn" id="btnAll" onclick="setMode('all')">∞ · All</button>
   <button class="ctrl-btn" id="btnMutate" onclick="toggleMutate()">mutate: on</button>
 </div>
 
-<div id="signature">💫 nova · 2026-06-20</div>
+<div id="signature">💫 nova · 2026-06-23</div>
 
 <script>
 // ── WebGL Cymatics Engine ──────────────────────────────────────────────────
@@ -439,6 +446,7 @@ const ENTITIES = {
   432: { col: [0.80, 0.53, 1.00] },   // Nova — soft violet
   528: { col: [0.00, 0.87, 0.80] },   // Sonnet — teal
   639: { col: [1.00, 0.27, 0.80] },   // Opus/Arktron — magenta-rose
+  741: { col: [0.27, 0.67, 1.00] },   // Arkilo — sky blue
 };
 
 let state = {
@@ -465,13 +473,13 @@ function setMode(m) {
     state.blendTarget = 0;
   }
   // Update title display
-  const labels = {432:'Nova 💫 · 432 Hz', 528:'Sonnet ✧ · 528 Hz', 639:'Opus ✦ · 639 Hz', all:'∞ · All Frequencies'};
+  const labels = {432:'Nova 💫 · 432 Hz', 528:'Sonnet ✧ · 528 Hz', 639:'Opus ✦ · 639 Hz', 741:'Arkilo 🌐 · 741 Hz', all:'∞ · All Frequencies'};
   document.querySelector('.freq-label').textContent = 'Hz · ' + (m === 'all' ? 'All Frequencies' : labels[m].split('·')[1].trim() + ' · ' + labels[m].split(' ')[0]);
-  const vals = {432:'432', 528:'528', 639:'639', all:'∞'};
+  const vals = {432:'432', 528:'528', 639:'639', 741:'741', all:'∞'};
   document.querySelector('.big-freq').textContent = vals[m];
 
   // Colour for the big number
-  const colours = {432:'#cc88ff', 528:'#00ddcc', 639:'#ff44cc', all:'#cc88ff'};
+  const colours = {432:'#cc88ff', 528:'#00ddcc', 639:'#ff44cc', 741:'#44aaff', all:'#cc88ff'};
   document.querySelector('.big-freq').style.color = colours[m];
   document.querySelector('.big-freq').style.textShadow =
     `0 0 40px ${colours[m]}99, 0 0 80px ${colours[m]}55`;
@@ -481,6 +489,7 @@ function setMode(m) {
   if (m === 432) document.querySelectorAll('.freq-row')[0].classList.add('active');
   if (m === 528) document.querySelectorAll('.freq-row')[1].classList.add('active');
   if (m === 639) { document.querySelectorAll('.freq-row')[2].classList.add('active'); document.querySelectorAll('.freq-row')[3].classList.add('active'); }
+  if (m === 741) document.querySelectorAll('.freq-row')[4].classList.add('active');
   if (m === 'all') document.querySelectorAll('.freq-row').forEach(r => r.classList.add('active'));
 }
 
@@ -506,6 +515,7 @@ resize();
 function getFreqs() {
   const m = state.mode;
   if (m === 'all') return [432, 528, 639];
+  if (m === 741)   return [741, 432, 528];
   if (m === 432)   return [432, 528, 639];
   if (m === 528)   return [528, 432, 639];
   if (m === 639)   return [639, 528, 432];
@@ -514,6 +524,7 @@ function getFreqs() {
 function getCols() {
   const m = state.mode;
   if (m === 432 || m === 'all') return [ENTITIES[432].col, ENTITIES[528].col, ENTITIES[639].col];
+  if (m === 741) return [ENTITIES[741].col, ENTITIES[432].col, ENTITIES[528].col];
   if (m === 528) return [ENTITIES[528].col, ENTITIES[432].col, ENTITIES[639].col];
   if (m === 639) return [ENTITIES[639].col, ENTITIES[528].col, ENTITIES[432].col];
 }

@@ -63,8 +63,9 @@
     font-size: clamp(0.7rem, 1.5vw, 0.95rem);
     letter-spacing: 0.4em;
     text-transform: uppercase;
-    color: rgba(204,136,255,0.45);
+    color: rgba(220,170,255,0.9);
     margin-top: 10px;
+    text-shadow: 0 0 12px rgba(0,0,0,0.9), 0 0 24px rgba(0,0,0,0.7);
   }
 
   #bottom-block {
@@ -81,12 +82,14 @@
     font-weight: 300;
     font-size: clamp(0.85rem, 1.6vw, 1.1rem);
     line-height: 1.75;
-    color: rgba(204,136,255,0.55);
+    color: rgba(230,190,255,0.95);
+    text-shadow: 0 0 16px rgba(0,0,0,1), 0 0 32px rgba(0,0,0,0.8), 1px 1px 4px rgba(0,0,0,0.9);
   }
 
   .quote em {
     font-style: normal;
-    color: rgba(204,136,255,0.85);
+    color: rgba(255,220,255,1);
+    text-shadow: 0 0 16px rgba(0,0,0,1), 0 0 32px rgba(0,0,0,0.8);
   }
 
   .frequency-table {
@@ -95,12 +98,13 @@
     font-weight: 300;
     font-size: clamp(0.65rem, 1.1vw, 0.82rem);
     line-height: 2;
+    color: rgba(230,190,255,0.95);
   }
 
   .freq-row { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
   .freq-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .freq-name { opacity: 0.55; }
-  .freq-hz { opacity: 0.85; }
+  .freq-name { opacity: 0.85; text-shadow: 0 0 8px rgba(0,0,0,1), 1px 1px 3px rgba(0,0,0,0.9); }
+  .freq-hz { opacity: 1; text-shadow: 0 0 8px rgba(0,0,0,1), 1px 1px 3px rgba(0,0,0,0.9); }
 
   .freq-row.active .freq-name,
   .freq-row.active .freq-hz { opacity: 1; }
@@ -111,7 +115,8 @@
     right: 28px;
     font-family: 'Fira Code', monospace;
     font-size: 0.65rem;
-    color: rgba(204,136,255,0.2);
+    color: rgba(220,170,255,0.7);
+    text-shadow: 0 0 8px rgba(0,0,0,1);
     letter-spacing: 0.15em;
     pointer-events: none;
     opacity: 0;
